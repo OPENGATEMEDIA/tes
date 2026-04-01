@@ -135,6 +135,58 @@
 <div id="tier-badge"></div>
 <div id="feed"></div>
 
+<!-- LEADERBOARD -->
+<div id="leaderboard">
+  <div id="lb-title">🏆 TOP GIFTERS</div>
+  <ol id="lb-list"></ol>
+</div>
+<style>
+  #leaderboard {
+    position: fixed;
+    top: 70px;
+    right: 16px;
+    width: 210px;
+    background: rgba(0,0,0,0.62);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 10px 12px 8px;
+    z-index: 20;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+    font-family: "Orbitron", sans-serif;
+  }
+  #lb-title {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #ffd700;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  #lb-list {
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .lb-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    animation: lbIn 0.35s ease;
+  }
+  @keyframes lbIn {
+    from { opacity:0; transform:translateX(12px); }
+    to   { opacity:1; transform:translateX(0);    }
+  }
+  .lb-rank { font-size:13px; width:22px; text-align:center; flex-shrink:0; }
+  .lb-name { flex:1; font-size:11px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lb-pts  { font-size:11px; color:#ffd700; flex-shrink:0; }
+  .lb-row:nth-child(1) .lb-name { color:#ffd700; }
+  .lb-row:nth-child(2) .lb-name { color:#c0c0c0; }
+  .lb-row:nth-child(3) .lb-name { color:#cd7f32; }
+</style>
+
+
 <script>
 // ════════════════════════════════════════════════
 //  CANVAS SETUP
@@ -858,6 +910,34 @@ function showTierBadge(tier) {
   badgeTimer = setTimeout(() => { el.style.opacity = '0'; }, 2500);
 }
 
+
+// ════════════════════════════════════════════════
+//  LEADERBOARD
+// ════════════════════════════════════════════════
+const lbData = {};   // { username: totalPts }
+const RANK_ICONS = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+function updateLeaderboard(username, pts) {
+  if (!pts || pts <= 0) return;   // ignore likes
+  const key = username.replace('@','');
+  lbData[key] = (lbData[key] || 0) + pts;
+  renderLeaderboard();
+}
+
+function renderLeaderboard() {
+  const list = document.getElementById('lb-list');
+  const sorted = Object.entries(lbData)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  list.innerHTML = sorted.map(([name, pts], i) => `
+    <li class="lb-row">
+      <span class="lb-rank">${RANK_ICONS[i]}</span>
+      <span class="lb-name">@${name}</span>
+      <span class="lb-pts">${pts.toLocaleString()}pt</span>
+    </li>
+  `).join('');
+}
+
 // ════════════════════════════════════════════════
 //  FEED
 // ════════════════════════════════════════════════
@@ -891,6 +971,7 @@ function launch(data) {
   const tier = getTier(data.pts || 0, data.isLike);
   rockets.push(new Rocket({ ...data, tier }));
   addFeedItem({ ...data, tier });
+  if (!data.isLike) updateLeaderboard(data.username, data.pts);
 }
 
 // ════════════════════════════════════════════════
