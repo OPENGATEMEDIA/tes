@@ -91,7 +91,7 @@ function connectTikTok(username, sessionId) {
   // Build options — session cookie helps bypass TikTok rate limits
   const options = {
     processInitialData: false,
-    enableExtendedGiftInfo: true,
+    enableExtendedGiftInfo: false,
     enableWebsocketUpgrade: true,
     requestPollingIntervalMs: 2000,
     requestHeaders: {
@@ -154,7 +154,14 @@ function connectTikTok(username, sessionId) {
     broadcast({ type:"STATUS", payload:tiktokStatus });
     log("📴", "Stream selesai");
   });
-  tiktok.on("error", err => log("⚠️", "WS Error: " + err.message));
+  tiktok.on("error", err => {
+    const msg = (err && (err.message || (typeof err === "string" ? err : JSON.stringify(err)))) || "Unknown error";
+    if (msg.includes("403") || msg.toLowerCase().includes("gift")) {
+      log("⚠️", "Info gift TikTok API 403 — hadiah tetap terbaca dari stream live");
+    } else {
+      log("⚠️", "WS Error: " + msg);
+    }
+  });
 
   tiktok.on("gift", data => {
     if (data.giftType===1 && !data.repeatEnd) return;
