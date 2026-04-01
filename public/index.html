@@ -13,7 +13,7 @@
 
   /* HUD */
   #hud {
-    position: fixed; top: 0; left: 0; right: 0;
+    position: fixed; top: 34px; left: 0; right: 0;
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px;
     background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
@@ -35,7 +35,7 @@
 
   /* Feed lateral */
   #feed {
-    position: fixed; bottom: 50px; left: 16px;
+    position: fixed; bottom: 16px; left: 16px;
     display: flex; flex-direction: column-reverse; gap: 5px;
     max-width: 260px; pointer-events: none; z-index: 10;
   }
@@ -168,12 +168,12 @@
 <style>
   #ticker-wrap {
     position: fixed;
-    bottom: 0;
+    top: 0;
     left: 0;
     width: 100%;
     height: 34px;
     background: rgba(0,0,0,0.72);
-    border-top: 1px solid rgba(255,215,0,0.25);
+    border-bottom: 1px solid rgba(255,215,0,0.25);
     overflow: hidden;
     z-index: 30;
     pointer-events: none;
@@ -213,7 +213,7 @@
 <style>
   #leaderboard {
     position: fixed;
-    top: 70px;
+    top: 104px;
     right: 16px;
     width: 210px;
     background: rgba(0,0,0,0.62);
