@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TikTok Gift Fireworks 🎆</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Orbitron:wght@700;900&family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; font-family: 'Noto Sans', sans-serif; }
+
+  canvas { display: block; }
+
+  /* HUD */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 16px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+    pointer-events: none; z-index: 10;
+  }
+  #title {
+    font-family: 'Orbitron', sans-serif; font-weight: 900;
+    font-size: 15px; letter-spacing: 3px; color: #fff;
+    text-shadow: 0 0 20px #ff4d6d, 0 0 40px #ff4d6d;
+  }
+  #status {
+    font-family: 'Orbitron', sans-serif; font-size: 10px;
+    padding: 4px 12px; border-radius: 20px; letter-spacing: 1px;
+    transition: all 0.3s;
+  }
+  #status.live    { background: #0f0a; border: 1px solid #0f0; color: #0f0; }
+  #status.demo    { background: #ffd70022; border: 1px solid #ffd700; color: #ffd700; }
+  #status.offline { background: #f004; border: 1px solid #f44; color: #f44; }
+
+  /* Feed lateral */
+  #feed {
+    position: fixed; bottom: 16px; left: 16px;
+    display: flex; flex-direction: column-reverse; gap: 5px;
+    max-width: 260px; pointer-events: none; z-index: 10;
+  }
+  .feed-item {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+    border-radius: 30px; padding: 5px 12px;
+    animation: feedIn 0.3s ease-out;
+    border-left: 3px solid var(--c);
+  }
+  .feed-item .fe { font-size: 16px; }
+  .feed-item .fu { color: var(--c); font-weight: 700; font-size: 12px; }
+  .feed-item .fg { color: #888; font-size: 11px; }
+  .feed-item .fp { color: #ffd700; font-size: 10px; font-family: 'Orbitron', monospace; }
+
+  @keyframes feedIn {
+    from { transform: translateX(-30px); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+  }
+
+  /* Tier badge top-right */
+  #tier-badge {
+    position: fixed; top: 50px; right: 16px;
+    font-family: 'Black Ops One', cursive;
+    font-size: 13px; letter-spacing: 2px;
+    padding: 6px 16px; border-radius: 30px;
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; z-index: 10;
+  }
+
+  /* Viewers */
+  #viewers {
+    position: fixed; top: 10px; right: 16px;
+    font-family: 'Orbitron', sans-serif; font-size: 10px;
+    color: #ffffff44; pointer-events: none; z-index: 10;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="title">🎆 GIFT FIREWORKS</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button id="mute-btn" onclick="
+      muted = !muted;
+      this.textContent = muted ? '🔇' : '🔊';
+      this.style.opacity = muted ? '0.4' : '1';
+      unlockAudio();
+    " style="
+      background:rgba(255,255,255,0.08);border:1px solid #333;
+      color:#fff;font-size:16px;width:34px;height:34px;border-radius:50%;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      pointer-events:all;
+    ">🔊</button>
+    <button id="fs-btn" onclick="toggleFullscreen()" title="Fullscreen" style="
+      background:rgba(255,255,255,0.08);border:1px solid #333;
+      color:#fff;font-size:15px;width:34px;height:34px;border-radius:50%;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      pointer-events:all;
+    ">⛶</button>
+    <div id="status" class="demo">🎮 DEMO</div>
+  </div>
+</div>
+
+<style>
+  /* Sembunyikan HUD saat fullscreen setelah 3 detik idle */
+  #hud { transition: opacity 0.5s; }
+  #hud.hidden { opacity: 0; pointer-events: none; }
+
+  /* Hilangkan address bar hint saat fullscreen */
+  :fullscreen body, :-webkit-full-screen body, :-moz-full-screen body {
+    overflow: hidden;
+  }
+  :fullscreen #hud, :-webkit-full-screen #hud, :-moz-full-screen #hud {
+    opacity: 1;
+  }
+</style>
+
+<div id="tap-hint" style="
+  position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+  font-family:'Orbitron',sans-serif;font-size:11px;color:#ffffff55;
+  pointer-events:none;z-index:10;letter-spacing:1px;
+  animation:fadeHint 3s ease-out forwards;
+">👆 TAP LAYAR UNTUK AKTIFKAN SUARA</div>
+<style>
+  @keyframes fadeHint {
+    0%   { opacity:1; }
+    70%  { opacity:1; }
+    100% { opacity:0; }
+  }
+</style>
+
+<div id="viewers"></div>
+<div id="tier-badge"></div>
+<div id="feed"></div>
+
+<script>
+// ════════════════════════════════════════════════
+//  CANVAS SETUP
+// ════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ════════════════════════════════════════════════
+//  GIFT TIERS CONFIG  (sesuai koin TikTok asli)
+// ════════════════════════════════════════════════
+//
+//  TIER  LABEL         KOIN       CONTOH GIFT
+//  like  ❤️ Like        0          like penonton
+//  t1    💸 1–10 koin   1–10       Rose, Coffee, Panda
+//  t2    💰 20–100 koin 20–100     Perfume, Donut, Bear
+//  t3    💎 100–999     100–999    Cake, Ring, Swan
+//  t4    🚀 1000–4999   1000–4999  Fireworks, Juara, Private Jet
+//  t5    👑 5000–9999   5000–9999  Unicorn, Sports Car
+//  t6    🦅 10k–42998   10000+     Falcon
+//  t7    🌌 SULTAN      42999+     Pegasus, TikTok Universe
+//
+const TIERS = [
+  {
+    // ── LIKE ──────────────────────────────────────
+    id: 'like', label: '❤️ LIKE', pts: 0,
+    particleCount: 25, radius: 90, speed: 4.5,
+    gravity: 0.15, decay: 0.022, trailAlpha: 0.45,
+    colors: ['#ffffff','#ffddee','#ff99bb','#ffccdd'],
+    rocketColor: '#ffaabb', rocketSpeed: 3,
+    flash: null, shake: false,
+    bursts: 0, ring: false, glitter: false, star: false,
+    badgeBg: '#ffffff18', badgeColor: '#ffaabb',
+  },
+  {
+    // ── T1: 1–10 koin (Rose, Coffee, Panda…) ──────
+    id: 'tier1', label: '💸 1–10 KOIN', pts: [1, 19],
+    particleCount: 45, radius: 130, speed: 5,
+    gravity: 0.14, decay: 0.018, trailAlpha: 0.55,
+    colors: ['#ff8fab','#ff6b9d','#ff4d6d','#ffccd5','#fff'],
+    rocketColor: '#ff8fab', rocketSpeed: 3.2,
+    flash: null, shake: false,
+    bursts: 0, ring: false, glitter: false, star: false,
+    badgeBg: '#ff4d6d22', badgeColor: '#ff8fab',
+  },
+  {
+    // ── T2: 20–100 koin (Perfume, Donut, Bear…) ───
+    id: 'tier2', label: '💰 20–100 KOIN', pts: [20, 99],
+    particleCount: 70, radius: 170, speed: 6,
+    gravity: 0.12, decay: 0.015, trailAlpha: 0.65,
+    colors: ['#ffb347','#ffa500','#ff8c00','#ffe0a0','#fff3d0','#ffffff'],
+    rocketColor: '#ffb347', rocketSpeed: 3.8,
+    flash: null, shake: false,
+    bursts: 1, ring: false, glitter: false, star: false,
+    badgeBg: '#ff880022', badgeColor: '#ffb347',
+  },
+  {
+    // ── T3: 100–999 koin (Cake, Ring, Swan…) ──────
+    id: 'tier3', label: '💎 100–999 KOIN', pts: [100, 999],
+    particleCount: 110, radius: 230, speed: 7,
+    gravity: 0.10, decay: 0.012, trailAlpha: 0.75,
+    colors: ['#00d4ff','#00aaff','#0077ff','#66eeff','#aaf4ff','#ffffff'],
+    rocketColor: '#00d4ff', rocketSpeed: 4.5,
+    flash: null, shake: false,
+    bursts: 2, ring: true, glitter: false, star: false,
+    badgeBg: '#00aaff22', badgeColor: '#66eeff',
+  },
+  {
+    // ── T4: 1000–4999 koin (Fireworks, Juara, Private Jet…)
+    id: 'tier4', label: '🚀 1000–4999 KOIN', pts: [1000, 4999],
+    particleCount: 170, radius: 290, speed: 8.5,
+    gravity: 0.09, decay: 0.010, trailAlpha: 0.85,
+    colors: ['#ffd700','#ffaa00','#ff8800','#ffe566','#fff3a0','#ffffff','#ffcc44'],
+    rocketColor: '#ffd700', rocketSpeed: 5.5,
+    flash: 'rgba(255,200,0,0.15)', shake: false,
+    bursts: 3, ring: true, glitter: true, star: false,
+    badgeBg: '#ffd70033', badgeColor: '#ffe566',
+  },
+  {
+    // ── T5: 5000–9999 koin (Unicorn, Sports Car…) ─
+    id: 'tier5', label: '👑 5000–9999 KOIN', pts: [5000, 9999],
+    particleCount: 250, radius: 350, speed: 10,
+    gravity: 0.08, decay: 0.008, trailAlpha: 0.92,
+    colors: ['#ff00cc','#ff4488','#aa00ff','#ff88ff','#ff44aa','#ffffff','#cc88ff'],
+    rocketColor: '#dd44ff', rocketSpeed: 6.5,
+    flash: 'rgba(200,0,255,0.2)', shake: true,
+    bursts: 4, ring: true, glitter: true, star: true,
+    badgeBg: '#aa00ff33', badgeColor: '#ee88ff',
+  },
+  {
+    // ── T6: 10000–42998 koin (Falcon…) ───────────
+    id: 'tier6', label: '🦅 FALCON 10K+ KOIN', pts: [10000, 42998],
+    particleCount: 320, radius: 400, speed: 11.5,
+    gravity: 0.07, decay: 0.007, trailAlpha: 0.95,
+    colors: ['#ff4400','#ff8800','#ffcc00','#ff0044','#ffffff','#ff6600','#ffaa00','#ff2200'],
+    rocketColor: '#ff6600', rocketSpeed: 7.5,
+    flash: 'rgba(255,80,0,0.28)', shake: true,
+    bursts: 5, ring: true, glitter: true, star: true,
+    badgeBg: '#ff440033', badgeColor: '#ff9944',
+  },
+  {
+    // ── T7: 42999+ koin (Pegasus, TikTok Universe) ─
+    id: 'tier7', label: '🌌 SULTAN! 40K+ KOIN', pts: [42999, Infinity],
+    particleCount: 500, radius: 480, speed: 13,
+    gravity: 0.055, decay: 0.006, trailAlpha: 1,
+    colors: [
+      '#ff0000','#ff5500','#ffaa00','#ffff00',
+      '#00ff88','#00ffff','#0088ff','#8800ff',
+      '#ff00ff','#ff0088','#ffffff','#aaffff','#ffaaff',
+    ],
+    rocketColor: '#ffffff', rocketSpeed: 9,
+    flash: 'rgba(255,255,255,0.65)', shake: true,
+    bursts: 8, ring: true, glitter: true, star: true,
+    badgeBg: 'linear-gradient(135deg,#ff0080,#ffd700,#00ffcc,#aa00ff)', badgeColor: '#fff',
+  },
+];
+
+function getTier(pts, isLike) {
+  if (isLike) return TIERS[0];
+  for (let i = TIERS.length - 1; i >= 1; i--) {
+    if (pts >= TIERS[i].pts[0]) return TIERS[i];
+  }
+  return TIERS[1];
+}
+
+// ════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════
+const rockets   = [];
+const particles = [];
+let   shakeX = 0, shakeY = 0;
+let   flashAlpha = 0, flashColor = '#fff';
+const stars = Array.from({length: 120}, () => ({
+  x: Math.random(), y: Math.random(),
+  r: Math.random() * 1.5 + 0.3,
+  a: Math.random() * 0.7 + 0.3,
+  twinkle: Math.random() * 0.02,
+  t: Math.random() * Math.PI * 2,
+}));
+
+// ════════════════════════════════════════════════
+//  PARTICLE
+// ════════════════════════════════════════════════
+class Particle {
+  constructor(x, y, tier, isTrail = false, isGlitter = false, isRing = false) {
+    const angle  = isRing
+      ? (Math.random() * Math.PI * 2)
+      : (Math.random() * Math.PI * 2);
+    const speed  = isRing
+      ? tier.speed * 1.6
+      : tier.speed * (0.3 + Math.random() * 0.7);
+
+    this.x  = x; this.y = y;
+    this.vx = Math.cos(angle) * speed * (isRing ? 1 : 1);
+    this.vy = Math.sin(angle) * speed * (isRing ? 1 : 1);
+    this.color = tier.colors[Math.floor(Math.random() * tier.colors.length)];
+    this.life   = 1;
+    this.decay  = isTrail   ? 0.04 + Math.random() * 0.02
+                : isGlitter ? tier.decay * 0.6
+                : isRing    ? tier.decay * 0.7
+                :             tier.decay + Math.random() * 0.005;
+    this.size   = isTrail   ? 1.5 + Math.random()
+                : isGlitter ? 1.2 + Math.random() * 0.8
+                : isRing    ? 2 + Math.random()
+                :             2 + Math.random() * 3;
+    this.gravity  = isTrail ? 0.05 : tier.gravity;
+    this.friction = isTrail ? 0.92 : 0.97;
+    this.trail    = !isTrail && !isGlitter && !isRing && tier.glitter;
+    this.trailDots = [];
+    this.isGlitter = isGlitter;
+    this.isStar    = isGlitter && Math.random() < 0.3;
+  }
+  update() {
+    if (this.trail && this.life > 0.3) {
+      this.trailDots.push({ x: this.x, y: this.y, life: this.life });
+      if (this.trailDots.length > 6) this.trailDots.shift();
+    }
+    this.vx *= this.friction;
+    this.vy *= this.friction;
+    this.vy += this.gravity;
+    this.x  += this.vx;
+    this.y  += this.vy;
+    this.life -= this.decay;
+  }
+  draw() {
+    if (this.life <= 0) return;
+    ctx.save();
+    // trail dots
+    for (const d of this.trailDots) {
+      const a = (d.life / 1) * 0.3;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, this.size * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = this.life;
+    ctx.fillStyle   = this.color;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur  = this.isGlitter ? 6 : (this.size > 3 ? 10 : 4);
+    if (this.isStar) {
+      // draw star shape
+      drawStar(ctx, this.x, this.y, 4, this.size * 1.2, this.size * 0.5);
+    } else {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, Math.max(0.1, this.size * this.life), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+  get alive() { return this.life > 0; }
+}
+
+function drawStar(ctx, cx, cy, spikes, outer, inner) {
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const r     = i % 2 === 0 ? outer : inner;
+    const angle = (i * Math.PI) / spikes - Math.PI / 2;
+    i === 0 ? ctx.moveTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r)
+            : ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ════════════════════════════════════════════════
+//  ROCKET (username flying up)
+// ════════════════════════════════════════════════
+class Rocket {
+  constructor({ username, emoji, pts, isLike, giftName, color }) {
+    this.username  = username;
+    this.emoji     = emoji || '🎁';
+    this.pts       = pts || 0;
+    this.isLike    = isLike || false;
+    this.giftName  = giftName || '';
+    this.tier      = getTier(this.pts, this.isLike);
+
+    // Position: spread across bottom, avoid center slightly
+    const side   = Math.random() < 0.5 ? -1 : 1;
+    const spread = 0.1 + Math.random() * 0.35;
+    this.x       = W / 2 + side * W * spread;
+    this.y       = H + 10;
+
+    // Target: explode in upper 20-55% of screen
+    this.targetY = H * (0.15 + Math.random() * 0.35);
+    this.speed   = this.tier.rocketSpeed;
+    this.exploded = false;
+    this.alpha    = 0;
+    this.trailTimer = 0;
+    this.rocketColor = this.tier.rocketColor;
+
+    // Slight curve
+    this.vx = (W / 2 - this.x) * 0.003 * (0.5 + Math.random());
+
+    // Whoosh sound on launch
+    playWhoosh(this.tier);
+  }
+
+  update() {
+    if (this.exploded) return;
+    this.alpha = Math.min(1, this.alpha + 0.08);
+    this.y    -= this.speed;
+    this.x    += this.vx;
+
+    // Emit trail particles
+    this.trailTimer++;
+    if (this.trailTimer % 2 === 0) {
+      for (let i = 0; i < 2; i++) {
+        particles.push(new Particle(
+          this.x + (Math.random() - 0.5) * 4,
+          this.y + 10,
+          this.tier, true
+        ));
+      }
+    }
+
+    // Explode!
+    if (this.y <= this.targetY) {
+      this.explode();
+    }
+  }
+
+  explode() {
+    this.exploded = true;
+    const t = this.tier;
+    const cx = this.x, cy = this.y;
+
+    // Explosion sound
+    playExplosion(t.id);
+
+    // Screen shake
+    if (t.shake) {
+      const mag = t.id === 'tier5' ? 12 : 6;
+      shakeX = (Math.random() - 0.5) * mag;
+      shakeY = (Math.random() - 0.5) * mag;
+      setTimeout(() => { shakeX = 0; shakeY = 0; }, 120);
+    }
+
+    // Screen flash
+    if (t.flash) {
+      flashColor = t.flash;
+      flashAlpha = t.id === 'tier5' ? 0.7 : 0.35;
+    }
+
+    // Show tier badge
+    showTierBadge(t);
+
+    // Main burst
+    for (let i = 0; i < t.particleCount; i++) {
+      particles.push(new Particle(cx, cy, t));
+    }
+
+    // Ring burst
+    if (t.ring) {
+      const ringCount = t.id === 'tier5' ? 48 : 32;
+      for (let i = 0; i < ringCount; i++) {
+        const angle = (i / ringCount) * Math.PI * 2;
+        const p = new Particle(cx, cy, t, false, false, true);
+        p.vx = Math.cos(angle) * t.speed * 1.5;
+        p.vy = Math.sin(angle) * t.speed * 1.5;
+        particles.push(p);
+      }
+    }
+
+    // Secondary bursts
+    for (let b = 0; b < t.bursts; b++) {
+      setTimeout(() => {
+        const bx = cx + (Math.random() - 0.5) * t.radius * 0.6;
+        const by = cy + (Math.random() - 0.5) * t.radius * 0.4;
+        const count = Math.floor(t.particleCount * 0.3);
+        for (let i = 0; i < count; i++) {
+          particles.push(new Particle(bx, by, t));
+        }
+      }, 80 + b * 120);
+    }
+
+    // Glitter rain
+    if (t.glitter) {
+      for (let i = 0; i < 60; i++) {
+        setTimeout(() => {
+          const gx = cx + (Math.random() - 0.5) * t.radius * 1.2;
+          const gy = cy + (Math.random() - 0.5) * t.radius * 0.8;
+          particles.push(new Particle(gx, gy, t, false, true));
+        }, Math.random() * 400);
+      }
+    }
+
+    // Star burst for top tiers
+    if (t.star) {
+      const spokes = t.id === 'tier5' ? 12 : 8;
+      for (let s = 0; s < spokes; s++) {
+        const angle = (s / spokes) * Math.PI * 2;
+        for (let d = 0; d < 8; d++) {
+          const dist = d / 8;
+          const p = new Particle(cx, cy, t, false, false, false);
+          p.vx = Math.cos(angle) * t.speed * (0.4 + dist * 0.8);
+          p.vy = Math.sin(angle) * t.speed * (0.4 + dist * 0.8);
+          p.color = '#ffffff';
+          p.size  = 3 - dist * 2;
+          particles.push(p);
+        }
+      }
+    }
+
+    // LEGENDARY: extra white flash burst
+    if (t.id === 'tier5') {
+      setTimeout(() => {
+        for (let i = 0; i < 200; i++) {
+          const p = new Particle(cx, cy, t, false, false, false);
+          p.color  = '#ffffff';
+          p.size   = 1 + Math.random() * 2;
+          p.vx    *= 1.4;
+          p.vy    *= 1.4;
+          particles.push(p);
+        }
+        flashAlpha = 0.4;
+      }, 250);
+    }
+  }
+
+  draw() {
+    if (this.exploded) return;
+    ctx.save();
+    ctx.globalAlpha = this.alpha;
+
+    // Rocket glow
+    ctx.shadowColor = this.rocketColor;
+    ctx.shadowBlur  = 22;
+
+    // Username text
+    const t = this.tier;
+    const fontSize = this.isLike ? 15
+      : t.id === 'tier5' ? 24
+      : t.id === 'tier4' ? 21
+      : t.id === 'tier3' ? 19
+      : 16;
+
+    ctx.font = `bold ${fontSize}px 'Noto Sans', sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Text background pill — solid dark, high contrast
+    const text = `${this.emoji} ${this.username}`;
+    const tw   = ctx.measureText(text).width;
+    const pad  = 12;
+    const ph   = fontSize + 14;
+    const rx   = this.x - tw / 2 - pad;
+    const ry   = this.y - ph / 2;
+
+    // Pill shadow for depth
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.shadowBlur  = 12;
+    ctx.fillStyle   = 'rgba(0,0,0,0.82)';
+    roundRect(ctx, rx, ry, tw + pad * 2, ph, ph / 2);
+    ctx.fill();
+
+    // Colored border glow
+    ctx.shadowColor = this.rocketColor;
+    ctx.shadowBlur  = 14;
+    ctx.strokeStyle = this.rocketColor;
+    ctx.lineWidth   = 2.5;
+    roundRect(ctx, rx, ry, tw + pad * 2, ph, ph / 2);
+    ctx.stroke();
+
+    // Text stroke (outline) for readability
+    ctx.shadowBlur   = 0;
+    ctx.strokeStyle  = 'rgba(0,0,0,0.95)';
+    ctx.lineWidth    = 4;
+    ctx.lineJoin     = 'round';
+    ctx.strokeText(text, this.x, this.y);
+
+    // Text fill — bright white
+    ctx.fillStyle  = '#ffffff';
+    ctx.shadowColor = this.rocketColor;
+    ctx.shadowBlur  = 10;
+    ctx.fillText(text, this.x, this.y);
+
+    // Pts badge
+    if (!this.isLike && this.pts > 0) {
+      const ptText = `+${this.pts} pt`;
+      ctx.font        = `bold 12px 'Orbitron', monospace`;
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur  = 10;
+      // outline
+      ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+      ctx.lineWidth   = 3;
+      ctx.strokeText(ptText, this.x, this.y + ph / 2 + 13);
+      ctx.fillStyle   = '#ffd700';
+      ctx.fillText(ptText, this.x, this.y + ph / 2 + 13);
+    }
+
+    ctx.restore();
+  }
+
+  get alive() { return !this.exploded; }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ════════════════════════════════════════════════
+//  AUDIO ENGINE (Web Audio API — no external files)
+// ════════════════════════════════════════════════
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+let audioUnlocked = false;
+let muted = false;
+
+// Unlock AudioContext on first user interaction (browser policy)
+function unlockAudio() {
+  if (audioUnlocked) return;
+  AC.resume().then(() => { audioUnlocked = true; });
+}
+document.addEventListener('click',      unlockAudio, { once: true });
+document.addEventListener('keydown',    unlockAudio, { once: true });
+document.addEventListener('touchstart', unlockAudio, { once: true });
+
+// Master chain: gain → compressor → output
+const masterGain = AC.createGain();
+masterGain.gain.value = 0.75;
+const comp = AC.createDynamicsCompressor();
+comp.threshold.value = -14;
+comp.knee.value      = 8;
+comp.ratio.value     = 5;
+comp.attack.value    = 0.002;
+comp.release.value   = 0.15;
+masterGain.connect(comp);
+comp.connect(AC.destination);
+
+function ac_now() { return AC.currentTime; }
+
+// White noise buffer (reusable)
+const NOISE_BUF = (() => {
+  const len = AC.sampleRate * 2;
+  const buf = AC.createBuffer(1, len, AC.sampleRate);
+  const d   = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+})();
+
+// Play filtered noise burst
+function noise(startFreq, endFreq, q, vol, dur, t) {
+  if (muted) return;
+  const src    = AC.createBufferSource();
+  src.buffer   = NOISE_BUF;
+  src.loop     = true;
+  const filter = AC.createBiquadFilter();
+  filter.type  = 'bandpass';
+  filter.frequency.setValueAtTime(startFreq, t);
+  if (endFreq) filter.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+  filter.Q.value = q;
+  const gain   = AC.createGain();
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(filter); filter.connect(gain); gain.connect(masterGain);
+  src.start(t); src.stop(t + dur + 0.05);
+}
+
+// Play tonal oscillator with decay
+function tone(freq, freqEnd, type, vol, attack, decay, t) {
+  if (muted) return;
+  const osc  = AC.createOscillator();
+  const gain = AC.createGain();
+  osc.type   = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t);
+  if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, t + attack + decay);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.linearRampToValueAtTime(vol, t + attack);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
+  osc.connect(gain); gain.connect(masterGain);
+  osc.start(t); osc.stop(t + attack + decay + 0.05);
+}
+
+// Rocket whoosh — rising pitch sweep, louder per tier
+function playWhoosh(tier) {
+  if (!audioUnlocked || muted) return;
+  const speeds = { like:3, tier1:3.2, tier2:3.8, tier3:4.5, tier4:5.5, tier5:6.5, tier6:7.5, tier7:9 };
+  const spd    = speeds[tier.id] || 4;
+  const dur    = Math.max(0.8, (H * 0.55 / spd) / 60);
+  const t      = ac_now();
+  const vols   = { like:0.06, tier1:0.08, tier2:0.11, tier3:0.15, tier4:0.20, tier5:0.27, tier6:0.34, tier7:0.42 };
+  const vol    = vols[tier.id] || 0.1;
+  noise(200, 3000, 3.5, vol, dur, t);
+  if (tier.id !== 'like') noise(70, 180, 1.5, vol * 0.4, dur * 0.8, t);
+  // tier6/7 tambah low rumble saat naik
+  if (tier.id === 'tier6' || tier.id === 'tier7') {
+    noise(40, 80, 1, vol * 0.3, dur, t);
+    tone(55, 80, 'sine', vol * 0.25, 0.01, dur, t);
+  }
+}
+
+// Explosion sounds per tier
+function playExplosion(tierId) {
+  if (!audioUnlocked || muted) return;
+  const t = ac_now();
+  switch (tierId) {
+
+    case 'like':
+      // Pop manis
+      tone(700, 280, 'sine',   0.14, 0.004, 0.18, t);
+      noise(2500, null, 10,    0.06, 0.14, t);
+      break;
+
+    case 'tier1':
+      // 1–10 koin: pop ringan
+      tone(110, 48, 'sine',    0.32, 0.004, 0.26, t);
+      noise(2800, null, 6,     0.12, 0.20, t);
+      noise(5500, null, 10,    0.06, 0.13, t + 0.03);
+      break;
+
+    case 'tier2':
+      // 20–100 koin: burst hangat + ekor
+      tone(80, 36, 'sine',     0.46, 0.004, 0.40, t);
+      noise(1600, null, 3,     0.20, 0.35, t);
+      noise(4000, null, 6,     0.11, 0.25, t + 0.02);
+      for (let i = 0; i < 3; i++)
+        noise(3000 + i*800, null, 10, 0.07, 0.11, t + 0.07 + i*0.06);
+      break;
+
+    case 'tier3':
+      // 100–999 koin: ledakan bersih + ring sparkle
+      tone(60, 27, 'sine',     0.65, 0.004, 0.60, t);
+      tone(120, 58,'triangle', 0.32, 0.004, 0.42, t);
+      noise(1100, null, 2,     0.32, 0.52, t);
+      noise(3500, null, 4,     0.17, 0.38, t + 0.02);
+      for (let i = 0; i < 5; i++)
+        noise(2600 + i*700, null, 11, 0.09, 0.13, t + 0.06 + i*0.07);
+      break;
+
+    case 'tier4':
+      // 1000–4999 koin: boom emas + sub-bass + glitter
+      tone(42, 19, 'sine',     0.80, 0.003, 0.80, t);
+      tone(85, 40, 'sine',     0.48, 0.003, 0.62, t);
+      tone(160, 78,'sawtooth', 0.18, 0.003, 0.33, t);
+      noise(650, null, 1.5,    0.42, 0.62, t);
+      noise(2600, null, 3,     0.26, 0.48, t + 0.02);
+      noise(5800, null, 5,     0.14, 0.28, t + 0.03);
+      for (let i = 0; i < 6; i++)
+        noise(1700 + i*550, null, 7, 0.11, 0.13, t + 0.07 + i*0.1);
+      tone(34, 21, 'sine',     0.28, 0.01, 1.0, t + 0.12);
+      break;
+
+    case 'tier5':
+      // 5000–9999 koin: ledakan ungu EPIK
+      tone(30, 13, 'sine',     0.92, 0.003, 1.2, t);
+      tone(58, 27, 'sine',     0.65, 0.003, 0.95, t);
+      tone(115, 54,'sawtooth', 0.30, 0.003, 0.65, t);
+      noise(480, null, 1,      0.60, 0.80, t);
+      noise(2000, null, 2,     0.38, 0.62, t + 0.01);
+      noise(5200, null, 3,     0.22, 0.42, t + 0.02);
+      for (let i = 0; i < 4; i++) {
+        const dt = 0.16 + i * 0.20;
+        tone(42 - i*4, 19, 'sine', 0.50, 0.003, 0.52, t + dt);
+        noise(950, null, 2, 0.30, 0.40, t + dt);
+        noise(2800 + i*450, null, 4, 0.16, 0.23, t + dt + 0.02);
+      }
+      for (let i = 0; i < 14; i++)
+        noise(2400 + i*340, null, 13, 0.13, 0.15, t + 0.1 + i*0.08);
+      tone(24, 19, 'sine',     0.38, 0.01, 2.0, t + 0.08);
+      tone(1300, 850, 'sine',  0.07, 0.01, 1.1, t + 0.30);
+      break;
+
+    case 'tier6':
+      // 10000–42998 koin: FALCON — api bergelombang
+      tone(25, 10, 'sine',     1.0,  0.002, 1.6, t);
+      tone(50, 23, 'sine',     0.78, 0.002, 1.2, t);
+      tone(100, 48,'sine',     0.50, 0.002, 0.85, t);
+      tone(180, 85,'sawtooth', 0.25, 0.002, 0.50, t);
+      noise(400, null, 1,      0.70, 1.0, t);
+      noise(1700, null, 2,     0.45, 0.75, t + 0.01);
+      noise(4500, null, 3,     0.28, 0.55, t + 0.02);
+      noise(9000, null, 5,     0.15, 0.35, t + 0.03);
+      for (let i = 0; i < 5; i++) {
+        const dt = 0.14 + i * 0.18;
+        tone(38 - i*3, 17, 'sine', 0.55, 0.002, 0.60, t + dt);
+        noise(800, null, 1.5, 0.38, 0.45, t + dt);
+        noise(2600 + i*400, null, 3, 0.20, 0.28, t + dt + 0.02);
+      }
+      for (let i = 0; i < 20; i++)
+        noise(1800 + i*380, null, 14, 0.12, 0.14, t + 0.08 + i*0.07);
+      tone(20, 16, 'sine',     0.45, 0.01, 2.8, t + 0.06);
+      tone(1600, 1000, 'sine', 0.06, 0.01, 1.4, t + 0.40);
+      noise(7000, 3500, 6,     0.12, 0.65, t + 0.55);
+      break;
+
+    case 'tier7':
+      // 42999+ koin: SULTAN / TikTok Universe — ULTRA MEGA BLAST
+      tone(20, 8,  'sine',     1.0,  0.002, 2.2, t);
+      tone(40, 18, 'sine',     0.85, 0.002, 1.8, t);
+      tone(80, 36, 'sine',     0.65, 0.002, 1.4, t);
+      tone(160, 70,'sawtooth', 0.35, 0.002, 0.9, t);
+      noise(350, null, 0.8,    0.80, 1.2, t);
+      noise(1400, null, 1.5,   0.55, 0.90, t + 0.005);
+      noise(3800, null, 2.5,   0.38, 0.70, t + 0.01);
+      noise(8500, null, 4,     0.22, 0.50, t + 0.015);
+      // 6 secondary blasts
+      for (let i = 0; i < 6; i++) {
+        const dt = 0.12 + i * 0.16;
+        tone(35 - i*3, 16, 'sine', 0.62, 0.002, 0.65, t + dt);
+        noise(700, null, 1.2, 0.42, 0.48, t + dt);
+        noise(2400 + i*350, null, 3, 0.22, 0.30, t + dt + 0.015);
+      }
+      // Sparkle mega cascade (28 layers)
+      for (let i = 0; i < 28; i++)
+        noise(1600 + i*380, null, 15, 0.14, 0.16, t + 0.06 + i*0.06);
+      // Ultra sub-bass rumble
+      tone(16, 13, 'sine',     0.55, 0.01, 3.5, t + 0.05);
+      // Mid shimmer
+      tone(500, 300, 'sine',   0.12, 0.01, 2.0, t + 0.20);
+      // High crystalline shimmer
+      tone(1800, 1100,'sine',  0.07, 0.01, 1.6, t + 0.40);
+      // White noise burst after flash
+      noise(6000, 2500, 5,     0.18, 0.8, t + 0.35);
+      // Final impact crackle
+      noise(10000, 5000, 7,    0.12, 0.55, t + 0.70);
+      // 2nd big hit at 300ms
+      setTimeout(() => {
+        if (muted) return;
+        const t2 = ac_now();
+        tone(30, 14, 'sine',   0.70, 0.002, 1.0, t2);
+        noise(500, null, 1,    0.50, 0.70, t2);
+        noise(3000, null, 2.5, 0.30, 0.50, t2 + 0.01);
+        for (let i = 0; i < 10; i++)
+          noise(2000 + i*400, null, 12, 0.10, 0.14, t2 + i*0.05);
+      }, 320);
+      break;
+  }
+}
+
+// ════════════════════════════════════════════════
+//  TIER BADGE
+// ════════════════════════════════════════════════
+let badgeTimer = null;
+function showTierBadge(tier) {
+  const el = document.getElementById('tier-badge');
+  el.textContent    = tier.label;
+  el.style.color    = tier.badgeColor;
+  el.style.background = tier.badgeBg;
+  el.style.border   = `1px solid ${tier.badgeColor}`;
+  el.style.boxShadow = `0 0 20px ${tier.badgeColor}44`;
+  el.style.opacity  = '1';
+  clearTimeout(badgeTimer);
+  badgeTimer = setTimeout(() => { el.style.opacity = '0'; }, 2500);
+}
+
+// ════════════════════════════════════════════════
+//  FEED
+// ════════════════════════════════════════════════
+const TIER_COLORS = {
+  like:'#ffaabb',  tier1:'#ff8fab',  tier2:'#ffb347',
+  tier3:'#00d4ff', tier4:'#ffd700',  tier5:'#dd44ff',
+  tier6:'#ff6600', tier7:'#ffffff',
+};
+
+function addFeedItem({ username, emoji, giftName, pts, isLike, tier }) {
+  const feed = document.getElementById('feed');
+  const el   = document.createElement('div');
+  el.className = 'feed-item';
+  el.style.setProperty('--c', TIER_COLORS[tier.id]);
+  const label = isLike ? 'Like' : `${giftName} (+${pts}pt)`;
+  el.innerHTML = `
+    <span class="fe">${emoji}</span>
+    <span class="fu">${username}</span>
+    <span class="fg">${label}</span>
+  `;
+  feed.prepend(el);
+  setTimeout(() => el.remove(), 4000);
+  // max 4 items
+  while (feed.children.length > 4) feed.lastChild.remove();
+}
+
+// ════════════════════════════════════════════════
+//  LAUNCH HELPER
+// ════════════════════════════════════════════════
+function launch(data) {
+  const tier = getTier(data.pts || 0, data.isLike);
+  rockets.push(new Rocket({ ...data, tier }));
+  addFeedItem({ ...data, tier });
+}
+
+// ════════════════════════════════════════════════
+//  MAIN LOOP
+// ════════════════════════════════════════════════
+let starT = 0;
+function loop() {
+  requestAnimationFrame(loop);
+  starT++;
+
+  // Fade trail instead of clear (comet effect)
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+
+  // Starfield
+  for (const s of stars) {
+    s.t += s.twinkle;
+    const alpha = s.a * (0.6 + 0.4 * Math.sin(s.t));
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle   = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Flash
+  if (flashAlpha > 0) {
+    ctx.fillStyle = flashColor;
+    ctx.globalAlpha = flashAlpha;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+    flashAlpha -= 0.04;
+    if (flashAlpha < 0) flashAlpha = 0;
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    particles[i].update();
+    particles[i].draw();
+    if (!particles[i].alive) particles.splice(i, 1);
+  }
+
+  // Rockets
+  for (let i = rockets.length - 1; i >= 0; i--) {
+    rockets[i].update();
+    rockets[i].draw();
+    if (!rockets[i].alive) rockets.splice(i, 1);
+  }
+
+  ctx.restore();
+}
+loop();
+
+// ════════════════════════════════════════════════
+//  WEBSOCKET → server.js
+// ════════════════════════════════════════════════
+const statusEl = document.getElementById('status');
+let ws, wsRetry;
+
+function wsConnect() {
+  try {
+    const _wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(_wsProto + '//' + location.host);
+
+    ws.onopen = () => {
+      statusEl.textContent = '🔴 LIVE TikTok';
+      statusEl.className   = 'live';
+      clearInterval(demoInterval);
+    };
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'GIFT') {
+          const d = msg.payload;
+          launch({
+            username: d.username,
+            emoji:    d.giftEmoji || '🎁',
+            giftName: d.giftName,
+            pts:      d.pts,
+            isLike:   false,
+          });
+        } else if (msg.type === 'LIKE') {
+          launch({
+            username: msg.payload.username,
+            emoji:    '❤️',
+            giftName: 'Like',
+            pts:      0,
+            isLike:   true,
+          });
+        } else if (msg.type === 'VIEWERS') {
+          const v = document.getElementById('viewers');
+          v.style.display = 'block';
+          v.textContent   = `👁 ${msg.count.toLocaleString()}`;
+        }
+      } catch(_) {}
+    };
+
+    ws.onclose = () => {
+      statusEl.textContent = '📡 Offline';
+      statusEl.className   = 'offline';
+      startDemo();
+      wsRetry = setTimeout(wsConnect, 4000);
+    };
+
+    ws.onerror = () => ws.close();
+  } catch(_) {
+    startDemo();
+  }
+}
+wsConnect();
+
+// ════════════════════════════════════════════════
+//  DEMO MODE
+// ════════════════════════════════════════════════
+const DEMO_USERS = [
+  '@rina_cute','@budi_pro','@sari88','@dito_',
+  '@maya_live','@kevin007','@nanda99','@rizal_id',
+  '@jessy_','@wahyu_','@deni88','@cipta_',
+];
+const DEMO_GIFTS = [
+  // 💸 Termurah
+  { name:'Rose',        emoji:'🌹', pts:1    },
+  { name:'Coffee',      emoji:'☕', pts:1    },
+  { name:'Finger Heart',emoji:'🤞', pts:5    },
+  { name:'Panda',       emoji:'🐼', pts:5    },
+  { name:'Love',        emoji:'❤️', pts:10   },
+  { name:'Lollipop',    emoji:'🍭', pts:10   },
+  // 💰 Murah
+  { name:'Perfume',     emoji:'🌸', pts:20   },
+  { name:'Donut',       emoji:'🍩', pts:30   },
+  { name:'Bouquet',     emoji:'💐', pts:30   },
+  { name:'Paper Crane', emoji:'🕊️', pts:99   },
+  { name:'Bear',        emoji:'🐻', pts:100  },
+  // 💎 Menengah
+  { name:'Ring',        emoji:'💍', pts:200  },
+  { name:'Money Gun',   emoji:'💰', pts:500  },
+  { name:'Swan',        emoji:'🦢', pts:700  },
+  { name:'Gold Mine',   emoji:'⛏️', pts:1000 },
+  // 🚀 Mahal
+  { name:'Fireworks',   emoji:'🎆', pts:1000 },
+  { name:'Juara',       emoji:'🏆', pts:1500 },
+  { name:'Magic Stage', emoji:'🎪', pts:2599 },
+  { name:'Private Jet', emoji:'✈️', pts:4888 },
+  // 👑 Sultan
+  { name:'Unicorn',     emoji:'🦄', pts:5000  },
+  { name:'Sports Car',  emoji:'🏎️', pts:7000  },
+  { name:'Falcon',      emoji:'🦅', pts:10999 },
+  { name:'Pegasus',     emoji:'🐎', pts:42999 },
+  { name:'TikTok Universe',emoji:'🌌',pts:44999},
+];
+
+let demoInterval = null;
+let demoStarted  = false;
+
+function startDemo() {
+  if (demoStarted) return;
+  demoStarted = true;
+  statusEl.textContent = '🎮 DEMO';
+  statusEl.className   = 'demo';
+
+  // Initial burst to show off
+  setTimeout(() => demoLaunch(), 500);
+  setTimeout(() => demoLaunch(), 1200);
+  setTimeout(() => demoLaunch(), 2000);
+
+  demoInterval = setInterval(() => {
+    demoLaunch();
+    // Occasionally launch a like
+    if (Math.random() < 0.3) {
+      setTimeout(() => {
+        launch({
+          username: DEMO_USERS[Math.floor(Math.random() * DEMO_USERS.length)],
+          emoji: '❤️', giftName: 'Like', pts: 0, isLike: true,
+        });
+      }, 400 + Math.random() * 400);
+    }
+  }, 1000 + Math.random() * 800);
+}
+
+function demoLaunch() {
+  // Weighted random — lebih sering gift kecil, jarang sultan
+  //  idx: 0-5=termurah, 6-9=murah, 10-12=menengah, 13-16=mahal, 17-20=sultan
+  const weights = [20,18,15,14,12,10, 8,7,6,5, 4,3,2, 2,1,1,1, 0.5,0.3,0.2,0.1,0.05,0.03,0.02,0.01];
+  const total   = weights.reduce((a,b) => a+b, 0);
+  let   rnd     = Math.random() * total, idx = 0;
+  for (let i = 0; i < weights.length; i++) {
+    rnd -= weights[i];
+    if (rnd <= 0) { idx = i; break; }
+  }
+  idx = Math.min(idx, DEMO_GIFTS.length - 1);
+  const g = DEMO_GIFTS[idx];
+  launch({
+    username: DEMO_USERS[Math.floor(Math.random() * DEMO_USERS.length)],
+    emoji: g.emoji, giftName: g.name, pts: g.pts, isLike: false,
+  });
+}
+
+// ════════════════════════════════════════════════
+//  FULLSCREEN
+// ════════════════════════════════════════════════
+const fsBtn = document.getElementById('fs-btn');
+let hudTimer = null;
+
+function toggleFullscreen() {
+  unlockAudio();
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (req) req.call(el);
+  } else {
+    const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+    if (ex) ex.call(document);
+  }
+}
+
+function onFullscreenChange() {
+  const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  fsBtn.textContent = isFs ? '✕' : '⛶';
+  fsBtn.title       = isFs ? 'Keluar Fullscreen (Esc)' : 'Fullscreen';
+  if (isFs) startHudHide();
+  else       showHud();
+}
+
+function startHudHide() {
+  showHud();
+  clearTimeout(hudTimer);
+  hudTimer = setTimeout(() => {
+    document.getElementById('hud').classList.add('hidden');
+  }, 3000);
+}
+
+function showHud() {
+  document.getElementById('hud').classList.remove('hidden');
+  clearTimeout(hudTimer);
+}
+
+// Mouse / touch movement shows HUD briefly then hides
+document.addEventListener('mousemove', () => {
+  if (document.fullscreenElement || document.webkitFullscreenElement) startHudHide();
+});
+document.addEventListener('touchstart', () => {
+  if (document.fullscreenElement || document.webkitFullscreenElement) startHudHide();
+}, { passive: true });
+
+document.addEventListener('fullscreenchange',       onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+document.addEventListener('mozfullscreenchange',    onFullscreenChange);
+
+// F key juga toggle fullscreen
+document.addEventListener('keydown', e => {
+  if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+});
+
+
+// ════════════════════════════════════════════════
+//  KEYBOARD: press G to force legendary gift (demo)
+// ════════════════════════════════════════════════
+document.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  // 1–7 = paksa tier tertentu
+  if (k==='1') launch({ username:'@test_rose',     emoji:'🌹', giftName:'Rose',           pts:1,     isLike:false });
+  if (k==='2') launch({ username:'@test_donut',    emoji:'🍩', giftName:'Donut',          pts:30,    isLike:false });
+  if (k==='3') launch({ username:'@test_ring',     emoji:'💍', giftName:'Ring',           pts:200,   isLike:false });
+  if (k==='4') launch({ username:'@test_juara',    emoji:'🏆', giftName:'Juara',          pts:1500,  isLike:false });
+  if (k==='5') launch({ username:'@test_unicorn',  emoji:'🦄', giftName:'Unicorn',        pts:5000,  isLike:false });
+  if (k==='6') launch({ username:'@test_falcon',   emoji:'🦅', giftName:'Falcon',         pts:10999, isLike:false });
+  if (k==='7') launch({ username:'@SULTAN_BESAR',  emoji:'🌌', giftName:'TikTok Universe',pts:44999, isLike:false });
+  if (k==='l') launch({ username:'@test_like',     emoji:'❤️', giftName:'Like',           pts:0,     isLike:true  });
+});
+</script>
+</body>
+</html>

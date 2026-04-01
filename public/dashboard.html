@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>⚙️ Dashboard — TikTok Fireworks</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07070f;--panel:#0d0d1c;--border:#1e1e38;--accent:#00d4ff;
+  --red:#ff4d6d;--green:#00ff88;--gold:#ffd700;--purple:#cc44ff;
+  --text:#e8e8f0;--muted:#555566;--input-bg:#111128;
+}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;
+  background-image:radial-gradient(ellipse at 10% 20%,#0a002033 0%,transparent 55%),
+                   radial-gradient(ellipse at 90% 80%,#00002833 0%,transparent 55%);}
+.topbar{background:rgba(0,0,0,0.7);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);
+  padding:14px 24px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;}
+.topbar-title{font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:3px;color:#fff;
+  text-shadow:0 0 20px var(--accent);}
+.topbar-links{display:flex;gap:10px}
+.topbar-links a{font-size:11px;font-family:'Space Mono',monospace;padding:5px 14px;border-radius:20px;
+  text-decoration:none;border:1px solid var(--border);color:var(--muted);transition:all .2s;}
+.topbar-links a:hover{border-color:var(--accent);color:var(--accent);}
+.topbar-links a.primary{border-color:var(--accent);color:var(--accent);background:var(--accent)18;}
+
+/* STATUS BAR */
+#status-bar{margin:20px 24px 0;padding:14px 18px;border-radius:12px;display:flex;
+  align-items:center;gap:12px;background:var(--panel);border:1px solid var(--border);transition:all .3s;}
+#status-dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s;}
+#status-dot.live{background:var(--green);box-shadow:0 0 12px var(--green);}
+#status-dot.connecting{background:var(--gold);animation:pulse .8s infinite;}
+#status-dot.error{background:var(--red);box-shadow:0 0 10px var(--red);}
+#status-text{font-size:13px;color:var(--text);flex:1}
+#status-user{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px 24px;max-width:1200px;}
+@media(max-width:760px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;}
+.card.full{grid-column:1/-1;}
+.card-title{font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;
+  font-family:'Space Mono',monospace;text-transform:uppercase;}
+
+/* FORM */
+.field{margin-bottom:14px;}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.5px;}
+label .hint{color:var(--muted);font-size:10px;font-weight:400;margin-left:6px;}
+input[type=text],input[type=number],input[type=password]{
+  width:100%;background:var(--input-bg);border:1px solid var(--border);
+  border-radius:8px;padding:10px 14px;color:var(--text);font-family:'Space Mono',monospace;
+  font-size:13px;outline:none;transition:border .2s;}
+input:focus{border-color:var(--accent);}
+.input-row{display:flex;gap:8px;align-items:center;}
+.input-row input{flex:1;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;}
+.toggle-label{font-size:13px;color:var(--text);}
+.toggle{position:relative;width:44px;height:24px;cursor:pointer;}
+.toggle input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:#222;border-radius:24px;transition:.3s;}
+.slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;
+  background:#fff;border-radius:50%;transition:.3s;}
+input:checked+.slider{background:var(--green);}
+input:checked+.slider:before{transform:translateX(20px);}
+
+/* BUTTONS */
+.btn{cursor:pointer;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;
+  padding:12px 20px;font-size:13px;transition:all .15s;letter-spacing:.5px;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#0088ff);color:#fff;box-shadow:0 4px 20px #00d4ff30;}
+.btn-primary:hover{filter:brightness(1.15);}
+.btn-danger{background:var(--red)22;border:1px solid var(--red)66;color:var(--red);}
+.btn-danger:hover{background:var(--red)33;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-sm{padding:6px 14px;font-size:11px;border-radius:8px;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+
+/* SESSION HELP */
+.help-box{background:#0a0a18;border:1px solid #1e1e38;border-radius:10px;padding:12px 14px;
+  font-size:11px;color:var(--muted);line-height:1.9;margin-top:10px;}
+.help-box b{color:var(--text);}
+.help-box code{background:#111128;padding:1px 6px;border-radius:4px;
+  font-family:'Space Mono',monospace;color:var(--accent);font-size:10px;}
+.help-box a{color:var(--accent);text-decoration:none;}
+.help-box a:hover{text-decoration:underline;}
+
+/* LOG CONSOLE */
+#log-box{background:#050510;border:1px solid #111128;border-radius:10px;
+  height:260px;overflow-y:auto;padding:10px 14px;font-family:'Space Mono',monospace;
+  font-size:11px;line-height:1.8;}
+#log-box::-webkit-scrollbar{width:4px;}
+#log-box::-webkit-scrollbar-thumb{background:#1e1e38;border-radius:2px;}
+.log-line{display:flex;gap:10px;border-bottom:1px solid #0d0d1c;padding:2px 0;}
+.log-line:last-child{border:none;}
+.log-time{color:#2a2a44;flex-shrink:0;}
+.log-msg{color:#6677aa;}
+.log-msg.ok{color:#00cc66;}
+.log-msg.err{color:var(--red);}
+.log-msg.gift{color:var(--gold);}
+.log-msg.like{color:#ff8fab;}
+.log-msg.info{color:var(--accent);}
+
+/* GIFT TABLE */
+.gift-table{width:100%;border-collapse:collapse;}
+.gift-table th{font-size:10px;letter-spacing:1.5px;color:var(--muted);font-family:'Space Mono',monospace;
+  padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);}
+.gift-table td{padding:5px 4px;border-bottom:1px solid #111120;vertical-align:middle;}
+.gift-table tr:last-child td{border-bottom:none;}
+.gift-table tr:hover td{background:#ffffff05;}
+.tier-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;
+  font-family:'Space Mono',monospace;font-weight:700;}
+.t1{background:#ff4d6d18;color:#ff8fab;border:1px solid #ff4d6d30;}
+.t2{background:#ffb34718;color:#ffb347;border:1px solid #ffb34730;}
+.t3{background:#00d4ff18;color:#66eeff;border:1px solid #00d4ff30;}
+.t4{background:#ffd70018;color:#ffd700;border:1px solid #ffd70030;}
+.t5{background:#cc44ff18;color:#ee88ff;border:1px solid #cc44ff30;}
+.t6{background:#ff660018;color:#ff9944;border:1px solid #ff660030;}
+.t7{background:#ffffff18;color:#ffffff;border:1px solid #ffffff30;}
+input.pts-input{width:90px;padding:5px 8px;font-size:12px;}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:999;
+  display:flex;flex-direction:column-reverse;gap:8px;pointer-events:none;}
+.toast-item{background:var(--panel);border-radius:10px;padding:10px 16px;
+  font-size:12px;font-family:'Space Mono',monospace;border-left:3px solid var(--green);
+  animation:toastIn .3s ease-out;box-shadow:0 4px 20px #000a;}
+.toast-item.err{border-color:var(--red);color:var(--red);}
+@keyframes toastIn{from{transform:translateX(60px);opacity:0}to{transform:translateX(0);opacity:1}}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
+.ws-chip{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);
+  background:var(--input-bg);border:1px solid var(--border);border-radius:6px;
+  padding:6px 10px;display:inline-block;margin-top:4px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">🎆 FIREWORKS DASHBOARD</div>
+  <div class="topbar-links">
+    <a href="/" class="primary" target="_blank">🎮 Buka Game</a>
+    <a href="/dashboard">⚙️ Dashboard</a>
+  </div>
+</div>
+
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <div id="status-text">Memuat status...</div>
+  <div id="status-user"></div>
+</div>
+
+<div class="grid">
+
+  <!-- ── KONEKSI ── -->
+  <div class="card">
+    <div class="card-title">🔌 Koneksi TikTok Live</div>
+
+    <div class="field">
+      <label>Username TikTok</label>
+      <input type="text" id="inp-username" placeholder="@username_kamu" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="field">
+      <label>
+        Session Cookie
+        <span class="hint">— wajib jika gagal konek</span>
+      </label>
+      <div class="input-row">
+        <input type="password" id="inp-session" placeholder="sessionid=xxxxxxxxxxxxxxxx..." autocomplete="off">
+        <button class="btn btn-ghost btn-sm" onclick="toggleSession()">👁</button>
+      </div>
+
+      <div class="help-box">
+        <b>Cara dapat Session Cookie:</b><br>
+        1. Login TikTok di Chrome/Firefox (bukan HP)<br>
+        2. Buka <a href="https://www.tiktok.com" target="_blank">tiktok.com</a> → tekan <code>F12</code><br>
+        3. Tab <b>Application</b> → <b>Cookies</b> → <b>tiktok.com</b><br>
+        4. Cari nama <code>sessionid</code> → copy nilainya<br>
+        5. Paste di kolom di atas (cukup nilai tanpa "sessionid=")<br><br>
+        <b>Kenapa perlu?</b> TikTok membatasi akses tanpa login.
+        Session cookie membuktikan akunmu sudah login.
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="connect()">⚡ Simpan &amp; Konek</button>
+      <button class="btn btn-danger" onclick="disconnect()">✕ Disconnect</button>
+    </div>
+
+    <hr class="divider">
+    <div class="toggle-row">
+      <span class="toggle-label">❤️ Tampilkan Like</span>
+      <label class="toggle">
+        <input type="checkbox" id="chk-like" onchange="saveSettings()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- ── LOG CONSOLE ── -->
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📋 Log Server</span>
+      <button class="btn btn-ghost btn-sm" onclick="clearLog()">🗑 Clear</button>
+    </div>
+    <div id="log-box"><div class="log-line"><span class="log-time">--:--:--</span><span class="log-msg">Menunggu log...</span></div></div>
+
+    <hr class="divider">
+    <div class="card-title" style="margin-top:0">🔗 Alamat Server</div>
+    <div class="ws-chip" id="info-http">http://localhost:3000</div>&nbsp;
+    <div class="ws-chip" id="info-ws">ws://localhost:8080</div>
+    <div class="btn-row" style="margin-top:10px">
+      <a href="/" target="_blank" class="btn btn-ghost btn-sm">🎮 Buka Game</a>
+      <button class="btn btn-ghost btn-sm" onclick="copyLink('/')">📋 Copy Link</button>
+    </div>
+  </div>
+
+  <!-- ── GIFT TABLE ── -->
+  <div class="card full">
+    <div class="card-title">🎁 Daftar Gift &amp; Poin</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.7">
+      Edit nilai poin sesuai kebutuhan. Klik <b>Simpan Semua Gift</b> setelah selesai.
+    </p>
+    <div style="overflow-x:auto">
+      <table class="gift-table">
+        <thead><tr>
+          <th>EMOJI</th><th>NAMA GIFT</th><th>POIN</th><th>TIER</th><th></th>
+        </tr></thead>
+        <tbody id="gift-tbody"></tbody>
+      </table>
+    </div>
+    <hr class="divider">
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveGifts()">💾 Simpan Semua Gift</button>
+      <button class="btn btn-ghost" onclick="addGiftRow()">＋ Tambah Gift</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── TOAST ───────────────────────────────────────
+function toast(msg, err=false) {
+  const el = document.createElement("div");
+  el.className = "toast-item"+(err?" err":"");
+  el.textContent = msg;
+  document.getElementById("toast").prepend(el);
+  setTimeout(()=>el.remove(), 3500);
+}
+function copyLink(p) {
+  navigator.clipboard.writeText(location.origin+p).then(()=>toast("Link disalin!"));
+}
+function toggleSession() {
+  const el = document.getElementById("inp-session");
+  el.type = el.type==="password" ? "text" : "password";
+}
+
+// ── STATUS ──────────────────────────────────────
+const dot=document.getElementById("status-dot"), stxt=document.getElementById("status-text"), suser=document.getElementById("status-user");
+function setStatus(s) {
+  if (s.connecting) {
+    dot.className="connecting"; stxt.textContent="⏳ Menghubungkan ke "+(s.username||"..."); suser.textContent="";
+  } else if (s.connected) {
+    dot.className="live"; stxt.textContent="✅ Terhubung ke TikTok Live"; suser.textContent=s.username;
+  } else if (s.error) {
+    dot.className="error"; stxt.textContent="❌ "+s.error; suser.textContent=s.username;
+  } else {
+    dot.className=""; stxt.textContent="⭕ Belum terhubung — masukkan username lalu klik Konek"; suser.textContent="";
+  }
+}
+
+// ── LOG ─────────────────────────────────────────
+const logBox = document.getElementById("log-box");
+function logClass(msg) {
+  if (msg.startsWith("✅")||msg.startsWith("📡")) return "ok";
+  if (msg.startsWith("❌")||msg.startsWith("⚠️")) return "err";
+  if (msg.startsWith("🎁")) return "gift";
+  if (msg.startsWith("❤️")) return "like";
+  if (msg.startsWith("🌐")||msg.startsWith("⚙️")||msg.startsWith("📡")||msg.startsWith("🔄")||msg.startsWith("💡")) return "info";
+  return "";
+}
+function addLog(entry, prepend=false) {
+  const el = document.createElement("div");
+  el.className = "log-line";
+  el.innerHTML = `<span class="log-time">${entry.t}</span><span class="log-msg ${logClass(entry.msg)}">${entry.msg}</span>`;
+  if (prepend) logBox.prepend(el); else logBox.appendChild(el);
+  if (!prepend) logBox.scrollTop = logBox.scrollHeight;
+}
+function clearLog() { logBox.innerHTML=""; }
+
+// ── WEBSOCKET ────────────────────────────────────
+let ws;
+function wsConnect() {
+  try {
+    const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(wsProto + "//" + location.host);
+    ws.onmessage = e => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type==="STATUS")   setStatus(msg.payload);
+        if (msg.type==="LOG")      addLog(msg.payload);
+        if (msg.type==="LOG_BULK") {
+          logBox.innerHTML="";
+          msg.payload.forEach(l => addLog(l));
+        }
+      } catch {}
+    };
+    ws.onopen  = () => { /* connected */ };
+    ws.onclose = () => setTimeout(wsConnect, 3000);
+    ws.onerror = () => {};
+  } catch {}
+}
+wsConnect();
+
+// ── LOAD CONFIG ──────────────────────────────────
+let giftData = [];
+async function loadConfig() {
+  const r = await fetch("/api/config"), cfg = await r.json();
+  document.getElementById("inp-username").value = cfg.tiktokUsername||"";
+  document.getElementById("inp-session").value  = cfg.sessionId||"";
+  document.getElementById("chk-like").checked   = cfg.likeEnabled!==false;
+  document.getElementById("info-http").textContent = `http://localhost:${cfg.httpPort||3000}`;
+  document.getElementById("info-ws").textContent   = `ws://localhost:${cfg.wsPort||8080}`;
+  giftData = cfg.gifts||[];
+  renderGifts(giftData);
+}
+async function loadStatus() {
+  const r = await fetch("/api/status");
+  setStatus(await r.json());
+}
+
+// ── GIFT TABLE ───────────────────────────────────
+function tierOf(pts) {
+  if (pts>=42999) return ["t7","🌌 Sultan"];
+  if (pts>=10000) return ["t6","🦅 Falcon"];
+  if (pts>=5000)  return ["t5","👑 Sultan-"];
+  if (pts>=1000)  return ["t4","🚀 Mahal"];
+  if (pts>=100)   return ["t3","💎 Menengah"];
+  if (pts>=20)    return ["t2","💰 Murah"];
+  return ["t1","💸 Termurah"];
+}
+function renderGifts(gifts) {
+  const tb = document.getElementById("gift-tbody");
+  tb.innerHTML="";
+  gifts.forEach((g,i) => {
+    const [tc,tl] = tierOf(g.pts);
+    const tr = document.createElement("tr");
+    tr.innerHTML=`
+      <td style="text-align:center;font-size:20px;width:44px">
+        <input type="text" value="${g.emoji||"🎁"}" maxlength="4"
+          style="background:transparent;border:none;color:var(--text);font-size:20px;width:36px;text-align:center;outline:none;cursor:pointer"
+          onchange="giftData[${i}].emoji=this.value">
+      </td>
+      <td>
+        <input type="text" value="${g.name}"
+          style="background:transparent;border:none;color:var(--text);font-family:'Syne',sans-serif;font-size:13px;width:140px;outline:none;padding:4px"
+          onchange="giftData[${i}].name=this.value">
+      </td>
+      <td>
+        <input type="number" class="pts-input" value="${g.pts}" min="0"
+          onchange="giftData[${i}].pts=parseInt(this.value)||1;updateBadge(this,${i})">
+      </td>
+      <td><span class="tier-badge ${tc}" id="badge-${i}">${tl}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeGift(${i})">🗑</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+function updateBadge(input,i) {
+  const pts=parseInt(input.value)||1, [tc,tl]=tierOf(pts);
+  const b=document.getElementById("badge-"+i);
+  if(b){b.className="tier-badge "+tc;b.textContent=tl;}
+}
+function removeGift(i){ giftData.splice(i,1); renderGifts(giftData); }
+function addGiftRow(){
+  giftData.push({name:"Gift Baru",emoji:"🎁",pts:1});
+  renderGifts(giftData);
+  document.getElementById("gift-tbody").lastChild?.scrollIntoView({behavior:"smooth"});
+}
+async function saveGifts(){
+  const r=await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({gifts:giftData})});
+  const d=await r.json();
+  d.ok ? toast("✅ Gift disimpan!") : toast("❌ Gagal simpan",true);
+}
+
+// ── CONNECT / DISCONNECT ─────────────────────────
+async function connect() {
+  const u = document.getElementById("inp-username").value.trim();
+  const s = document.getElementById("inp-session").value.trim();
+  if (!u) { toast("Username tidak boleh kosong",true); return; }
+  await saveSettings(false);
+  const r = await fetch("/api/connect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,sessionId:s})});
+  const d = await r.json();
+  d.ok ? toast("⚡ Menghubungkan ke "+d.username+"...") : toast("❌ "+d.error,true);
+}
+async function disconnect(){
+  await fetch("/api/disconnect",{method:"POST"});
+  toast("🔌 Disconnected");
+  setStatus({connected:false,username:"",error:""});
+}
+async function saveSettings(notify=true){
+  const like=document.getElementById("chk-like").checked;
+  const r=await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({likeEnabled:like})});
+  const d=await r.json();
+  if(notify&&d.ok) toast("✅ Pengaturan disimpan");
+}
+
+// ── INIT ─────────────────────────────────────────
+loadConfig();
+loadStatus();
+setInterval(loadStatus, 6000);
+document.getElementById("inp-username").addEventListener("keydown", e=>{ if(e.key==="Enter") connect(); });
+</script>
+</body>
+</html>
